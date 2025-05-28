@@ -57,5 +57,5 @@ renameVar old new expr = case expr of
     else Abstraction (v, ty) (renameVar old new body)
 
 freshVar :: Var -> [Var] -> Var
-freshVar (Var base) used = head $ filter (`notElem` used) candidates
+freshVar (Var base) used = head $ filter (`notElem` used) candidates -- guaranteed to be non empty, so head won't fail
   where candidates = [Var (base ++ show n) | n <- [(1::Int)..]]
