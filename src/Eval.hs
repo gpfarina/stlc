@@ -21,6 +21,14 @@ eval expr = case expr of
       e1' -> Application e1' (eval e2)
   Abstraction _ _ -> expr  -- abstractions are values
   Variable _ -> expr       -- variables are values
+  TrueLit -> TrueLit -- booleans are values
+  FalseLit -> FalseLit -- booleans are values
+  IfThenElse cond leftBranch rightBranch ->
+    case eval cond of
+        TrueLit -> eval leftBranch
+        FalseLit -> eval rightBranch
+        _ -> error "this cannot happen after typechecking"
+
 
 
 subst :: Var -> LmExpr -> LmExpr -> LmExpr
@@ -42,6 +50,9 @@ subst (Var x) e1 e2 = -- e1[var |->e2]
 
 freeVars :: LmExpr -> [Var]
 freeVars expr = case expr of
+  TrueLit -> []
+  FalseLit -> []
+  IfThenElse e1 e2 e3 -> freeVars e1 ++ freeVars e2 ++ freeVars e3 
   Variable v -> [v]
   Application e1 e2 -> freeVars e1 ++ freeVars e2
   Abstraction (v, _) body -> filter (/= v) (freeVars body)
@@ -51,6 +62,9 @@ freeVars expr = case expr of
 renameVar :: Var -> Var -> LmExpr -> LmExpr
 renameVar old new expr = case expr of
   Variable v -> if v == old then Variable new else Variable v
+  TrueLit -> TrueLit
+  FalseLit -> FalseLit
+  IfThenElse e1 e2 e3 -> IfThenElse (renameVar old new e1) (renameVar old new e2) (renameVar old new e3)
   Application e1 e2 -> Application (renameVar old new e1) (renameVar old new e2)
   Abstraction (v, ty) body ->
     if v == old then Abstraction (new, ty) (renameVar old new body)

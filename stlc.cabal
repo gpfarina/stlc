@@ -44,10 +44,6 @@ library
 
 executable stlc-exe
   main-is: Main.hs
-  other-modules:
-      Paths_stlc
-  autogen-modules:
-      Paths_stlc
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
