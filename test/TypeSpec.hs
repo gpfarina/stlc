@@ -4,6 +4,7 @@ import Test.Hspec
 import Types
 import TypeCheck
 import AST
+import Eval (safeEval)
 
 spec :: Spec
 spec = describe "typeOf" $ do
@@ -25,3 +26,26 @@ spec = describe "typeOf" $ do
     let f = Abstraction  (Var "x", Arrow Unit Unit) (Variable (Var "y"))
         badApp = Application f (Abstraction (Var "z", Unit) (Variable (Var "z")))
     in typeOf [] badApp `shouldBe` Nothing
+
+  it "typechecks boolean constant, true case" $
+    typeOf [] TrueLit `shouldBe` Just Bool
+
+  it "typechecks boolean constant, false case" $
+    typeOf [] FalseLit `shouldBe` Just Bool
+
+  it "typechecks boolean expressions, boolean eliminator" $
+    typeOf [] (IfThenElse TrueLit TrueLit FalseLit) `shouldBe` Just Bool 
+
+  it "typechecks, boolean expressions with context" $
+    typeOf [(Var "x", Bool)] (IfThenElse (Variable (Var "x")) TrueLit FalseLit) `shouldBe` Just Bool 
+
+  it "rejects ill-typed, boolean expressions" $
+    typeOf [(Var "x", Unit)] (IfThenElse (Variable (Var "x")) TrueLit FalseLit) `shouldBe` Nothing
+
+  it "performs correct boolean elimination, true case" $ 
+    let ifThenElse = IfThenElse TrueLit TrueLit FalseLit
+    in  safeEval [] ifThenElse `shouldBe` Just TrueLit
+
+  it "performs correct boolean elimination, false case" $ 
+    let ifThenElse = IfThenElse FalseLit TrueLit FalseLit
+    in  safeEval [] ifThenElse `shouldBe` Just FalseLit
