@@ -3,8 +3,6 @@ module Eval (safeEval, subst, renameVar) where
 import AST
 import Var
 import TypeCheck
-import Types (Context)
-
 
 safeEval :: LmExpr -> Maybe LmExpr
 safeEval e = do
@@ -16,7 +14,8 @@ safeEval e = do
 
 
 step :: LmExpr -> Maybe LmExpr
-step e = case e of
+step e = 
+  case e of
   Application e1 e2
     | isValue e1 && isValue e2 ->
         case e1 of
@@ -37,6 +36,12 @@ step e = case e of
   Succ e' -> do
     e'' <- step e'
     Just $ Succ e''
+  NatRec baseCase _ Zero -> return baseCase
+  NatRec baseCase (Variable varN, Variable varAcc, stepBody) (Succ n) -> do
+      let recCall = NatRec baseCase (Variable varN, Variable varAcc, stepBody) n
+          stepSubst1 = subst varN stepBody n
+          stepSubst2 = subst varAcc stepSubst1 recCall
+          in return stepSubst2
   _ -> error "this should not happen"
 
 
@@ -68,7 +73,7 @@ subst (Var x) e1 e2 = -- e1[var |->e2], in e1 substitute every occurence of x wi
         FalseLit -> FalseLit
         Zero -> Zero 
         Succ e -> Succ (subst (Var x) e e2)
-        -- NatRec e1' (e2', e3, e4) e5 -> NatRec (subst (Var x) e1' e2) (subst (Var x) e2' e2, subst (Var x) e3 e2, subst (Var x) e4 e2) (subst (Var x) e5 e2)
+        NatRec e1' (e2', e3, e4) e5 -> NatRec (subst (Var x) e1' e2) (subst (Var x) e2' e2, subst (Var x) e3 e2, subst (Var x) e4 e2) (subst (Var x) e5 e2)
         _ -> error "Something went wrong"
 
 
@@ -83,7 +88,7 @@ freeVars expr = case expr of
   Abstraction (v, _) body -> filter (/= v) (freeVars body)
   Zero -> []
   Succ e -> freeVars e
-  -- NatRec e1 (e2, e3, e4) e5 -> freeVars e1 ++ freeVars e2 ++ freeVars e3 ++ freeVars e4 ++ freeVars e5
+  NatRec e1 (e2, e3, e4) e5 -> freeVars e1 ++ freeVars e2 ++ freeVars e3 ++ freeVars e4 ++ freeVars e5
 
 
 
@@ -96,10 +101,10 @@ renameVar old new expr = case expr of
   FalseLit -> FalseLit
   Zero -> Zero
   Succ e -> Succ (renameVar old new e)
-  -- NatRec e1 (e2, e3, e4) e5 ->
-  --   NatRec (renameVar old new e1)
-  --          (renameVar old new e2, renameVar old new e3, renameVar old new e4)
-  --          (renameVar old new e5)
+  NatRec e1 (e2, e3, e4) e5 ->
+    NatRec (renameVar old new e1)
+           (renameVar old new e2, renameVar old new e3, renameVar old new e4)
+           (renameVar old new e5)
   IfThenElse e1 e2 e3 ->
     IfThenElse (renameVar old new e1) (renameVar old new e2) (renameVar old new e3)
   Application e1 e2 ->

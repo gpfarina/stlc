@@ -31,16 +31,16 @@ typeOf ctx lmExpr = case lmExpr of
         tPred <- typeOf ctx e
         if tPred == Nat then return Nat
         else Nothing
-    -- NatRec baseCase (stepFst, stepSnd, stepTrd)  input-> do
-    --     tInput <- typeOf ctx input
-    --     tBase <- typeOf ctx baseCase
-    --     guard (tInput == Nat)
-    --     case (stepFst, stepSnd) of 
-    --         (Variable (Var curr), Variable (Var acc)) -> do
-    --             tStep <- typeOf ((Var curr, Nat) : (Var acc, tBase) : ctx) stepTrd
-    --             guard (tStep == tBase)
-    --             return tBase
-    --         _ -> Nothing
+    NatRec baseCase (stepFst, stepSnd, stepTrd)  input-> do
+        tInput <- typeOf ctx input
+        tBase <- typeOf ctx baseCase
+        guard (tInput == Nat)
+        case (stepFst, stepSnd) of 
+            (Variable (Var curr), Variable (Var acc)) -> do
+                tStep <- typeOf ((Var curr, Nat) : (Var acc, tBase) : ctx) stepTrd
+                guard (tStep == tBase)
+                return tBase
+            _ -> Nothing
 
 
 

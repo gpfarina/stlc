@@ -39,6 +39,19 @@ spec = describe "eval" $ do
         three = Succ (Succ (Succ Zero))
         in safeEval (Succ two) `shouldBe` Just three
 
+  it "adds 2 and 3 correctly" $ do
+    -- Evaluate add two three
+    let zero = Zero
+        one = Succ Zero
+        two = Succ one
+        three = Succ two
+        four = Succ three
+        five = Succ four
+        add x y = NatRec x (Variable $ Var "n", Variable $ Var "acc", Succ (Variable (Var "acc"))) y
+        expr = add two three
+        result = safeEval expr  -- your eval function
+    result `shouldBe` Just five
+
   it "renames a free variable in a variable expression" $ do
       let e = Variable (Var "x")
       renameVar (Var "x") (Var "y") e `shouldBe` Variable (Var "y")
