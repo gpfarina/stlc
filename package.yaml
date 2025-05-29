@@ -40,7 +40,7 @@ executables:
   stlc-exe:
     main:                Main.hs
     source-dirs:         app
-    package-name: stlc-exe
+    # package-name: stlc-exe
     ghc-options:
     - -threaded
     - -rtsopts

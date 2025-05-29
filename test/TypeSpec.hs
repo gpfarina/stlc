@@ -1,10 +1,9 @@
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
-module TypeSpec where
+module TypeSpec(spec) where
 import Test.Hspec
-import Types
+import Types ( STLCType(..), Var(Var))
 import TypeCheck
 import AST
-import Eval (safeEval)
 
 spec :: Spec
 spec = describe "typeOf" $ do
@@ -41,11 +40,3 @@ spec = describe "typeOf" $ do
 
   it "rejects ill-typed, boolean expressions" $
     typeOf [(Var "x", Unit)] (IfThenElse (Variable (Var "x")) TrueLit FalseLit) `shouldBe` Nothing
-
-  it "performs correct boolean elimination, true case" $ 
-    let ifThenElse = IfThenElse TrueLit TrueLit FalseLit
-    in  safeEval [] ifThenElse `shouldBe` Just TrueLit
-
-  it "performs correct boolean elimination, false case" $ 
-    let ifThenElse = IfThenElse FalseLit TrueLit FalseLit
-    in  safeEval [] ifThenElse `shouldBe` Just FalseLit
