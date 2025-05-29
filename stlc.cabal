@@ -27,7 +27,6 @@ library
   exposed-modules:
       AST
       Eval
-      Lib
       TypeCheck
       Types
       Var
