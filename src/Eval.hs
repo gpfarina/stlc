@@ -3,23 +3,27 @@ module Eval (safeEval, subst, renameVar) where
 import AST
 import Var
 import TypeCheck
+import Types (STLCType(Unit))
 
 safeEval :: LmExpr -> Maybe LmExpr
 safeEval e = do
   _ <- typeOf [] e
+  eval e
+
+eval:: LmExpr -> Maybe LmExpr
+eval e = do
   if isValue e then Just e
   else do
     reduced <- step e
-    safeEval reduced
-
+    eval reduced
 
 step :: LmExpr -> Maybe LmExpr
-step e = 
+step e =
   case e of
   Application e1 e2
     | isValue e1 && isValue e2 ->
         case e1 of
-          Abstraction (v, _) body -> return $ subst v body e2
+          Abstraction (v, _) body -> return $ subst v e2 body
           _ -> Nothing
     | isValue e1 -> do
         e2' <- step e2
@@ -33,16 +37,24 @@ step e =
     | otherwise -> do
       guard' <- step guard 
       return $ IfThenElse guard' left right
-  Succ e' -> do
-    e'' <- step e'
-    Just $ Succ e''
+  Succ e' 
+    | not (isValue e') -> do
+        e'' <- step e'
+        return $ Succ e''
+    | otherwise -> Nothing
+
   NatRec baseCase _ Zero -> return baseCase
+
   NatRec baseCase (Variable varN, Variable varAcc, stepBody) (Succ n) -> do
-      let recCall = NatRec baseCase (Variable varN, Variable varAcc, stepBody) n
-          stepSubst1 = subst varN stepBody n
-          stepSubst2 = subst varAcc stepSubst1 recCall
-          in return stepSubst2
-  _ -> error "this should not happen"
+    let
+      stepFn = Abstraction (varN, Unit) (Abstraction (varAcc, Unit) stepBody) -- we use Unit, types do not matter anymore at this point
+      recCall = NatRec baseCase (Variable varN, Variable varAcc, stepBody) n
+      appliedToN = Application stepFn n
+      appliedToRecCall = Application appliedToN recCall
+      in 
+      return appliedToRecCall
+
+  _ -> error $ "step: unhandled case: " ++ show e
 
 
 isValue :: LmExpr -> Bool
@@ -54,28 +66,36 @@ isValue expr = case expr of
   Abstraction _ _ -> True
   _ -> False
 
-
 subst :: Var -> LmExpr -> LmExpr -> LmExpr
-subst (Var x) e1 e2 = -- e1[var |->e2], in e1 substitute every occurence of x with e2
-    case e1 of
-        Variable (Var y) | x==y -> e2
-        Variable (Var y) | x/=y -> e1
-        Application e3 e4 -> Application (subst (Var x) e3 e2) (subst (Var x) e4 e2)
-        Abstraction (Var y, _) _ | x==y -> e1
-        Abstraction (Var y, ty) body | x /= y ->
-          if Var y `notElem` freeVars e2 then
-            Abstraction (Var y, ty) (subst (Var x) body e2)
-          else
-            let v' = freshVar (Var y) (freeVars e2 ++ freeVars body)
-                body' = renameVar (Var y) v' body
-            in Abstraction (v', ty) (subst (Var x) body' e2)
-        TrueLit -> TrueLit
-        FalseLit -> FalseLit
-        Zero -> Zero 
-        Succ e -> Succ (subst (Var x) e e2)
-        NatRec e1' (e2', e3, e4) e5 -> NatRec (subst (Var x) e1' e2) (subst (Var x) e2' e2, subst (Var x) e3 e2, subst (Var x) e4 e2) (subst (Var x) e5 e2)
-        _ -> error "Something went wrong"
+subst (Var x) target expr =
+  case expr of
+    Variable (Var y) | x == y -> target
+    Variable _                -> expr
+    Application e1 e2         -> Application (subst (Var x) target e1) (subst (Var x) target e2)
+    Abstraction (Var y, ty) body
+      | x == y               -> expr
+      | Var y `notElem` freeVars target ->
+          Abstraction (Var y, ty) (subst (Var x) target body)
+      | otherwise ->
+          let v' = freshVar (Var y) (freeVars target ++ freeVars body)
+              body' = renameVar (Var y) v' body
+          in Abstraction (v', ty) (subst (Var x) target body')
 
+    TrueLit -> TrueLit
+    FalseLit -> FalseLit
+    Zero -> Zero
+    Succ e -> Succ (subst (Var x) target e)
+    NatRec e1 (Variable (Var n), Variable (Var acc), eBody) e2
+      | x == n || x == acc -> 
+          NatRec (subst (Var x) target e1) (Variable (Var n), Variable (Var acc), eBody) (subst (Var x) target e2)
+      | Var n `notElem` freeVars target && Var acc `notElem` freeVars target ->
+          NatRec (subst (Var x) target e1) (Variable (Var n), Variable (Var acc), subst (Var x) target eBody) (subst (Var x) target e2)
+      | otherwise ->
+          let n' = freshVar (Var n) (freeVars target ++ freeVars eBody)
+              acc' = freshVar (Var acc) (freeVars target ++ freeVars eBody ++ [n'])
+              eBody' = renameVar (Var acc) acc' (renameVar (Var n) n' eBody)
+          in NatRec (subst (Var x) target e1) (Variable n', Variable acc', subst (Var x) target eBody') (subst (Var x) target e2)
+    _ -> error $ "subst: unhandled case: " ++ show expr
 
 
 freeVars :: LmExpr -> [Var]

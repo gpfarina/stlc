@@ -3,7 +3,7 @@ module EvalSpec(spec) where
 import Test.Hspec
 import AST
 import Eval (safeEval, subst, renameVar)
-import Types ( STLCType(Bool), Var(Var) )  
+import Types ( STLCType(Bool), Var(Var) )
 spec :: Spec
 spec = describe "eval" $ do
 
@@ -18,11 +18,11 @@ spec = describe "eval" $ do
         input = TrueLit
     in safeEval (Application abstr0 (Application abstr1 input)) `shouldBe` Just TrueLit
 
-  it "performs correct boolean elimination, true case" $ 
+  it "performs correct boolean elimination, true case" $
     let ifThenElse = IfThenElse TrueLit TrueLit FalseLit
     in  safeEval ifThenElse `shouldBe` Just TrueLit
 
-  it "performs correct boolean elimination, true case complex" $ 
+  it "performs correct boolean elimination, true case complex" $
     let abstr0 = Abstraction (Var "y", Bool) (Variable $ Var "y")
         abstr1 = Abstraction (Var "x", Bool) (Variable $ Var "x")
         input = TrueLit
@@ -30,7 +30,7 @@ spec = describe "eval" $ do
         ifThenElse = IfThenElse guard TrueLit FalseLit
     in  safeEval ifThenElse `shouldBe` Just TrueLit
 
-  it "performs correct boolean elimination, false case" $ 
+  it "performs correct boolean elimination, false case" $
     let ifThenElse = IfThenElse FalseLit TrueLit FalseLit
     in  safeEval ifThenElse `shouldBe` Just FalseLit
 
@@ -42,7 +42,7 @@ spec = describe "eval" $ do
   it "adds 2 and 3 correctly" $ do
     -- Evaluate add two three
     let zero = Zero
-        one = Succ Zero
+        one = Succ zero
         two = Succ one
         three = Succ two
         four = Succ three
@@ -51,6 +51,19 @@ spec = describe "eval" $ do
         expr = add two three
         result = safeEval expr  -- your eval function
     result `shouldBe` Just five
+
+  it "computes factorial of 3" $ do
+    let zero = Zero
+        one = Succ zero
+        two = Succ one
+        three = Succ two
+        four = Succ three
+        five = Succ four
+        six = Succ five
+        add x y = NatRec y (Variable $ Var "an", Variable $ Var "aacc", Succ (Variable (Var "aacc"))) x
+        mult x y = NatRec zero (Variable $ Var "mn", Variable $ Var "macc", add y (Variable $ Var "macc")) x
+        fact = NatRec one (Variable $ Var "fn", Variable $ Var "facc", mult (Succ $ Variable $ Var "fn") (Variable $ Var "facc"))
+        result = safeEval (fact three) in result `shouldBe` Just six
 
   it "renames a free variable in a variable expression" $ do
       let e = Variable (Var "x")
@@ -88,27 +101,27 @@ spec = describe "eval" $ do
   it "leaves other variables unchanged" $ do
     let e = Variable (Var "y")
         sub = Variable (Var "z")
-    subst (Var "x") e sub `shouldBe` e
+    subst (Var "x") sub e `shouldBe` e
 
   it "substitutes in applications" $ do
     let e = Application (Variable (Var "x")) (Variable (Var "y"))
         sub = TrueLit
-    subst (Var "x") e sub `shouldBe` Application TrueLit (Variable (Var "y"))
+    subst (Var "x") sub e `shouldBe` Application TrueLit (Variable (Var "y"))
 
   it "does not substitute inside abstractions that bind the same variable" $ do
     let e = Abstraction (Var "x", Bool) (Variable (Var "x"))
         sub = Variable (Var "z")
-    subst (Var "x") e sub `shouldBe` e
+    subst (Var "x") sub e `shouldBe` e
 
   it "substitutes inside abstractions with different variable name and no capture" $ do
     let e = Abstraction (Var "y", Bool) (Application (Variable (Var "x")) (Variable (Var "y")))
         sub =  TrueLit
-    subst (Var "x") e sub `shouldBe` Abstraction (Var "y", Bool) (Application TrueLit (Variable (Var "y")))
+    subst (Var "x") sub e `shouldBe` Abstraction (Var "y", Bool) (Application TrueLit (Variable (Var "y")))
 
   it "renames bound variables to avoid capture" $ do
     let e = Abstraction (Var "y", Bool) (Application (Variable (Var "x")) (Variable (Var "y")))
         sub = Variable (Var "y")
-        result = subst (Var "x") e sub
+        result = subst (Var "x") sub e
     case result of
       Abstraction (Var y', _) body -> do
         y' `shouldNotBe` "y" -- ensure capture avoidance via renaming
